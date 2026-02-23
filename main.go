@@ -33,22 +33,35 @@ func main() {
 	}
 }
 
-func NewAgent(
+/*
+ Agent Function that has access to an anthropic.Client(which loos for the ANTHROPIC_API_KEY) and gets user
+ message by reading from stdin on terminal.
+*/
+
+func NewAgent(					
 	client 			*anthropic.Client, 
 	getUserMessage func() (string, bool),
-	tools 			[]ToolDefinition,
+	tools 			[]ToolDefinition,		// Tool Definitions for Agent
 	) *Agent {
 	return &Agent{
 		client:         client,
 		getUserMessage: getUserMessage,
+		tools: 			tools,				// Tool Definitions for Agent
 	}
 }
 
 type Agent struct {
 	client         	*anthropic.Client
 	getUserMessage 	func() (string, bool)
-	tools 			[]ToolDefinition
+	tools 			[]ToolDefinition		// Tool Definitions for Agent
 }
+
+/*
+Run() method that executes an infinite loop that talks to Claude:
+	* We first print a prompt, ask the user to type something.
+	* Add the input to the conversation and send to Claude.
+	* Add Claude's response to conversation and print response, and cycle continues.
+*/
 
 func (a *Agent) Run(ctx context.Context) error {
 	conversation := []anthropic.MessageParam{}
@@ -95,6 +108,12 @@ func (a *Agent) Run(ctx context.Context) error {
 	return nil
 }
 
+/*
+When we get a message back from Claude, we check if Claude asked us to execute a tool by looking for 
+content.Type == "tool_use", if so we hand executeTool, lookup the tool by name in our local registry, unmarshal 
+the input, and execute it and return the result. If its an error, we flip a boolean. We execute the tool, and
+send the result back up to Claude and ask again for Claude's response.
+*/
 
 func (a *Agent) executeTool(id, name string, input json.RawMessage) anthropic.ContentBlockParamUnion {
 	var toolDef ToolDefinition
@@ -118,6 +137,10 @@ func (a *Agent) executeTool(id, name string, input json.RawMessage) anthropic.Co
 	return anthropic.NewToolResultBlock(id, response, false)
 }
 
+/*
+Tool Definitions (in anthropicTools) are sent to Anthropic Server and adds it to the conversation array.
+Anthropic then replies in a specific way if it want to use the tool.
+*/
 
 func (a *Agent) runInference(ctx context.Context, conversation []anthropic.MessageParam) (*anthropic.Message, error) {
 	anthropicTools := []anthropic.ToolUnionParam{}
@@ -141,12 +164,24 @@ func (a *Agent) runInference(ctx context.Context, conversation []anthropic.Messa
 }
 
 
+/*
+Each Tool added will have the following properties:
+	* Name for the tool
+	* Description to tell the model what the tool does, when to use and not use it, what it returns etc.
+	* Input Schema that describes, as a JSON schema, what inputs this tool expects and in which form
+	* Function that executes the tool with the input the model sends to us and returns the result.
+*/
+
 type ToolDefinition struct {
 	Name        string                         `json:"name"`
 	Description string                         `json:"description"`
 	InputSchema anthropic.ToolInputSchemaParam `json:"input_schema"`
 	Function    func(input json.RawMessage) (string, error)
 }
+
+/*
+ReadFileDefinition is a tool containing its definitions defined below
+*/
 
 var ReadFileDefinition = ToolDefinition{
 	Name:        "read_file",
@@ -159,6 +194,7 @@ type ReadFileInput struct {
 	Path string `json:"path" jsonschema_description:"The relative path of a file in the working directory."`
 }
 
+// This will be sent to the model after it has been converted into JSON format.
 var ReadFileInputSchema = GenerateSchema[ReadFileInput]()
 
 func ReadFile(input json.RawMessage) (string, error) {
@@ -175,6 +211,7 @@ func ReadFile(input json.RawMessage) (string, error) {
 	return string(content), nil
 }
 
+// Generates a JSON Schema for our tool definition which will be sent to the model
 func GenerateSchema[T any]() anthropic.ToolInputSchemaParam {
 	reflector := jsonschema.Reflector{
 		AllowAdditionalProperties: false,
@@ -188,6 +225,10 @@ func GenerateSchema[T any]() anthropic.ToolInputSchemaParam {
 		Properties: schema.Properties,
 	}
 }
+
+/*
+ListFiles tool returns the list of file and directories in the current folder.
+*/
 
 var ListFilesDefinition = ToolDefinition{
 	Name:        "list_files",
@@ -247,6 +288,10 @@ func ListFiles(input json.RawMessage) (string, error) {
 	return string(result), nil
 }
 
+/*
+Edit File tool lets Claude edit files
+*/
+
 var EditFileDefinition = ToolDefinition{
 	Name: "edit_file",
 	Description: `Make edits to a text file.
@@ -267,6 +312,10 @@ type EditFileInput struct {
 
 var EditFileInputSchema = GenerateSchema[EditFileInput]()
 
+/*
+EditFile function checks the parameters, reads the file and replaces the OldStr with NewStr. 
+Then it writes the content back to disk and returns "OK".
+*/
 
 func EditFile(input json.RawMessage) (string, error) {
 	editFileInput := EditFileInput{}
