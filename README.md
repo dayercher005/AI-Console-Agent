@@ -41,6 +41,46 @@ go run main.go
 ```
 ---
 
+## Sample Response (using Messages API of Claude API)
+
+Request:
+```shell
+curl https://api.anthropic.com/v1/messages \
+  --header "x-api-key: $ANTHROPIC_API_KEY" \
+  --header "anthropic-version: 2023-06-01" \
+  --header "content-type: application/json" \
+  --data '{
+    "model": "claude-opus-4-6",
+    "max_tokens": 1024,
+    "messages": [
+      {"role": "user", "content": "Hello, Claude"}
+    ]
+  }'
+```
+
+
+Response:
+```json
+{
+  "id": "msg_01XFDUDYJgAACzvnptvVoYEL",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "text",
+      "text": "Hello! How can I assist you today?"
+    }
+  ],
+  "model": "claude-opus-4-6",
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 12,
+    "output_tokens": 8
+  }
+}
+```
+---
+
 ### Acknowledgements
 
 View the Anthropic Golang API Library <a href="https://github.com/anthropics/anthropic-sdk-go?tab=readme-ov-file">here</a>
