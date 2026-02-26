@@ -17,7 +17,7 @@ Definition: An autonomous software system that uses artificial intelligence to a
 ## Setup & Installation
 
 ### Prerequisites
-* Go. You can install it <a href="https://go.dev/doc/install">here</a>
+* Go. You can install it <a target="_blank" href="https://go.dev/doc/install">here</a>
 * Anthropic API Key, and set it as an environment variable, `ANTHROPIC_API_KEY`. 
 
 ### 1. Clone the repository
